@@ -1,0 +1,413 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ------------------------------------------------------------------------
+    // 1. Global Safety Net (Default Deny)
+    // ------------------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Startup connection validation probe
+    match /test/connection {
+      allow get: if true;
+    }
+
+    // ------------------------------------------------------------------------
+    // 2. Global Hardened Primitives
+    // ------------------------------------------------------------------------
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isBootstrappedAdmin() {
+      return isVerified() && request.auth.token.email == 'hsanbdalrhmn382@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdmin() || (
+        isVerified() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+      );
+    }
+
+    function isModeratorOrAdmin() {
+      return isAdmin() || (
+        isVerified() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'moderator']
+      );
+    }
+
+    // ------------------------------------------------------------------------
+    // 3. Entity Validation Blueprints
+    // ------------------------------------------------------------------------
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'email', 'fullName', 'role', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'fullName', 'avatarUrl', 'role', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 160
+        && data.fullName is string && data.fullName.size() >= 1 && data.fullName.size() <= 100
+        && (!('avatarUrl' in data) || data.avatarUrl == null || (data.avatarUrl is string && data.avatarUrl.size() <= 500))
+        && data.role in ['admin', 'moderator', 'user']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidStore(data) {
+      return data.keys().hasAll(['name', 'slug', 'isPopular', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['name', 'slug', 'logoUrl', 'websiteUrl', 'description', 'isPopular', 'createdAt', 'updatedAt'])
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 80
+        && data.slug is string && data.slug.size() >= 1 && data.slug.size() <= 100
+        && (!('logoUrl' in data) || data.logoUrl == null || (data.logoUrl is string && data.logoUrl.size() <= 500))
+        && (!('websiteUrl' in data) || data.websiteUrl == null || (data.websiteUrl is string && data.websiteUrl.size() <= 500))
+        && (!('description' in data) || data.description == null || (data.description is string && data.description.size() <= 500))
+        && data.isPopular is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidCategory(data) {
+      return data.keys().hasAll(['name', 'slug', 'sortOrder', 'createdAt'])
+        && data.keys().hasOnly(['name', 'slug', 'description', 'sortOrder', 'createdAt'])
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 80
+        && data.slug is string && data.slug.size() >= 1 && data.slug.size() <= 100
+        && (!('description' in data) || data.description == null || (data.description is string && data.description.size() <= 400))
+        && data.sortOrder is int && data.sortOrder >= -1000 && data.sortOrder <= 10000
+        && data.createdAt is timestamp;
+    }
+
+    function isValidCoupon(data) {
+      return data.keys().hasAll([
+          'storeId', 'code', 'title', 'discountPercent', 'isFeatured',
+          'status', 'usageCount', 'startsAt', 'createdBy', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'storeId', 'categoryId', 'code', 'title', 'description',
+          'discountPercent', 'discountLabel', 'terms', 'offerUrl', 'imageUrl',
+          'startsAt', 'expiresAt', 'isFeatured', 'status', 'usageCount',
+          'createdBy', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.storeId)
+        && (!('categoryId' in data) || data.categoryId == null || isValidId(data.categoryId))
+        && data.code is string && data.code.size() >= 2 && data.code.size() <= 40
+        && data.title is string && data.title.size() >= 2 && data.title.size() <= 180
+        && (!('description' in data) || data.description == null || (data.description is string && data.description.size() <= 1000))
+        && data.discountPercent is int && data.discountPercent >= 1 && data.discountPercent <= 100
+        && (!('discountLabel' in data) || data.discountLabel == null || (data.discountLabel is string && data.discountLabel.size() <= 40))
+        && (!('terms' in data) || data.terms == null || (data.terms is string && data.terms.size() <= 1000))
+        && (!('offerUrl' in data) || data.offerUrl == null || (data.offerUrl is string && data.offerUrl.size() <= 500))
+        && (!('imageUrl' in data) || data.imageUrl == null || (data.imageUrl is string && data.imageUrl.size() <= 500))
+        && data.startsAt is timestamp
+        && (!('expiresAt' in data) || data.expiresAt == null || data.expiresAt is timestamp)
+        && data.isFeatured is bool
+        && data.status in ['active', 'paused', 'expired']
+        && data.usageCount is int && data.usageCount >= 0
+        && isValidId(data.createdBy)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidFavorite(data) {
+      return data.keys().hasAll(['userId', 'couponId', 'createdAt'])
+        && data.keys().hasOnly(['userId', 'couponId', 'createdAt'])
+        && isValidId(data.userId)
+        && isValidId(data.couponId)
+        && data.userId == request.auth.uid
+        && data.createdAt is timestamp;
+    }
+
+    function isValidCouponVote(data) {
+      return data.keys().hasAll(['couponId', 'userId', 'isWorking', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['couponId', 'userId', 'isWorking', 'createdAt', 'updatedAt'])
+        && isValidId(data.couponId)
+        && isValidId(data.userId)
+        && data.userId == request.auth.uid
+        && data.isWorking is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidCouponUse(data) {
+      return data.keys().hasAll(['couponId', 'userId', 'createdAt'])
+        && data.keys().hasOnly(['couponId', 'userId', 'createdAt'])
+        && isValidId(data.couponId)
+        && isValidId(data.userId)
+        && data.userId == request.auth.uid
+        && data.createdAt is timestamp;
+    }
+
+    function isValidReport(data) {
+      return data.keys().hasAll(['couponId', 'userId', 'reason', 'status', 'createdAt'])
+        && data.keys().hasOnly(['couponId', 'userId', 'reason', 'details', 'status', 'reviewedBy', 'reviewedAt', 'createdAt'])
+        && isValidId(data.couponId)
+        && isValidId(data.userId)
+        && data.reason is string && data.reason.size() >= 2 && data.reason.size() <= 180
+        && (!('details' in data) || data.details == null || (data.details is string && data.details.size() <= 600))
+        && data.status in ['pending', 'resolved', 'dismissed']
+        && (!('reviewedBy' in data) || data.reviewedBy == null || isValidId(data.reviewedBy))
+        && (!('reviewedAt' in data) || data.reviewedAt == null || data.reviewedAt is timestamp)
+        && data.createdAt is timestamp;
+    }
+
+    function isValidBanner(data) {
+      return data.keys().hasAll(['title', 'imageUrl', 'sortOrder', 'isActive', 'createdBy', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly([
+          'title', 'badgeText', 'subtitle', 'imageUrl', 'linkUrl',
+          'ctaLabel', 'sortOrder', 'isActive', 'createdBy', 'createdAt', 'updatedAt'
+        ])
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 140
+        && (!('badgeText' in data) || data.badgeText == null || (data.badgeText is string && data.badgeText.size() <= 40))
+        && (!('subtitle' in data) || data.subtitle == null || (data.subtitle is string && data.subtitle.size() <= 240))
+        && data.imageUrl is string && data.imageUrl.size() >= 1 && data.imageUrl.size() <= 500
+        && (!('linkUrl' in data) || data.linkUrl == null || (data.linkUrl is string && data.linkUrl.size() <= 500))
+        && (!('ctaLabel' in data) || data.ctaLabel == null || (data.ctaLabel is string && data.ctaLabel.size() <= 40))
+        && data.sortOrder is int && data.sortOrder >= -1000 && data.sortOrder <= 10000
+        && data.isActive is bool
+        && isValidId(data.createdBy)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // ------------------------------------------------------------------------
+    // 4. Collection Rules
+    // ------------------------------------------------------------------------
+
+    // /users/{userId} — PII Isolated to Owner & Staff
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isModeratorOrAdmin());
+      allow list: if isSignedIn() && (isBootstrappedAdmin() || existing().uid == request.auth.uid);
+
+      allow create: if isValidId(userId)
+        && isSignedIn()
+        && isOwner(userId)
+        && isValidUserProfile(incoming())
+        && incoming().uid == userId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (incoming().role == 'user' || isBootstrappedAdmin());
+
+      allow update: if isValidId(userId)
+        && isSignedIn()
+        && isValidUserProfile(incoming())
+        && incoming().uid == existing().uid
+        && incoming().email == existing().email
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'avatarUrl', 'updatedAt'])) ||
+          (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['role', 'fullName', 'avatarUrl', 'updatedAt']))
+        );
+
+      allow delete: if false;
+    }
+
+    // /stores/{storeId} — Public Read, Admin-Only Write
+    match /stores/{storeId} {
+      allow get: if isValidId(storeId);
+      allow list: if true;
+
+      allow create: if isValidId(storeId)
+        && isAdmin()
+        && isValidStore(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isValidId(storeId)
+        && isAdmin()
+        && isValidStore(incoming())
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'name', 'slug', 'logoUrl', 'websiteUrl', 'description', 'isPopular', 'updatedAt'
+        ]);
+
+      allow delete: if isValidId(storeId) && isAdmin();
+    }
+
+    // /categories/{categoryId} — Public Read, Admin-Only Write
+    match /categories/{categoryId} {
+      allow get: if isValidId(categoryId);
+      allow list: if true;
+
+      allow create: if isValidId(categoryId)
+        && isAdmin()
+        && isValidCategory(incoming())
+        && incoming().createdAt == request.time;
+
+      allow update: if isValidId(categoryId)
+        && isAdmin()
+        && isValidCategory(incoming())
+        && incoming().createdAt == existing().createdAt
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'name', 'slug', 'description', 'sortOrder'
+        ]);
+
+      allow delete: if isValidId(categoryId) && isAdmin();
+    }
+
+    // /coupons/{couponId} — Public Read, STRICTLY Admin-Only Insert/Update/Delete
+    match /coupons/{couponId} {
+      allow get: if isValidId(couponId);
+      allow list: if true;
+
+      allow create: if isValidId(couponId)
+        && isAdmin()
+        && isValidCoupon(incoming())
+        && incoming().createdBy == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/stores/$(incoming().storeId));
+
+      allow update: if isValidId(couponId)
+        && isAdmin()
+        && isValidCoupon(incoming())
+        && incoming().createdBy == existing().createdBy
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/stores/$(incoming().storeId))
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'storeId', 'categoryId', 'code', 'title', 'description',
+          'discountPercent', 'discountLabel', 'terms', 'offerUrl', 'imageUrl',
+          'startsAt', 'expiresAt', 'isFeatured', 'status', 'updatedAt'
+        ]);
+
+      allow delete: if isValidId(couponId) && isAdmin();
+    }
+
+    // /favorites/{favoriteId} — Owner-Only Read/Create/Delete
+    match /favorites/{favoriteId} {
+      allow get: if isValidId(favoriteId) && isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && existing().userId == request.auth.uid;
+
+      allow create: if isValidId(favoriteId)
+        && isSignedIn()
+        && isValidFavorite(incoming())
+        && incoming().createdAt == request.time
+        && exists(/databases/$(database)/documents/coupons/$(incoming().couponId));
+
+      allow update: if false;
+
+      allow delete: if isValidId(favoriteId) && isSignedIn() && existing().userId == request.auth.uid;
+    }
+
+    // /coupon_votes/{voteId} — Public Count Read (No PII), Signed-in Owner Vote
+    match /coupon_votes/{voteId} {
+      allow get: if isValidId(voteId);
+      allow list: if true;
+
+      allow create: if isValidId(voteId)
+        && isSignedIn()
+        && isValidCouponVote(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/coupons/$(incoming().couponId));
+
+      allow update: if isValidId(voteId)
+        && isSignedIn()
+        && existing().userId == request.auth.uid
+        && isValidCouponVote(incoming())
+        && incoming().userId == existing().userId
+        && incoming().couponId == existing().couponId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['isWorking', 'updatedAt']);
+
+      allow delete: if isValidId(voteId) && isSignedIn() && existing().userId == request.auth.uid;
+    }
+
+    // /coupon_uses/{useId} — Public Count Read (No PII), Signed-in User Copy Log
+    match /coupon_uses/{useId} {
+      allow get: if isValidId(useId);
+      allow list: if true;
+
+      allow create: if isValidId(useId)
+        && isSignedIn()
+        && isValidCouponUse(incoming())
+        && incoming().createdAt == request.time
+        && exists(/databases/$(database)/documents/coupons/$(incoming().couponId));
+
+      allow update: if false;
+      allow delete: if isValidId(useId) && isAdmin();
+    }
+
+    // /reports/{reportId} — Owner Creates Pending; Staff Reviews; Terminal Locking
+    match /reports/{reportId} {
+      allow get: if isValidId(reportId) && isSignedIn() && (existing().userId == request.auth.uid || isModeratorOrAdmin());
+      allow list: if isSignedIn() && (isBootstrappedAdmin() || existing().userId == request.auth.uid);
+
+      allow create: if isValidId(reportId)
+        && isSignedIn()
+        && isValidReport(incoming())
+        && incoming().userId == request.auth.uid
+        && incoming().status == 'pending'
+        && (!('reviewedBy' in incoming()) || incoming().reviewedBy == null)
+        && (!('reviewedAt' in incoming()) || incoming().reviewedAt == null)
+        && incoming().createdAt == request.time
+        && exists(/databases/$(database)/documents/coupons/$(incoming().couponId));
+
+      allow update: if isValidId(reportId)
+        && isVerified()
+        && isValidReport(incoming())
+        && isModeratorOrAdmin()
+        && (existing().status == 'pending' || isAdmin())
+        && incoming().couponId == existing().couponId
+        && incoming().userId == existing().userId
+        && incoming().reason == existing().reason
+        && incoming().createdAt == existing().createdAt
+        && incoming().reviewedBy == request.auth.uid
+        && incoming().reviewedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'reviewedBy', 'reviewedAt']);
+
+      allow delete: if isValidId(reportId) && isAdmin();
+    }
+
+    // /banners/{bannerId} — Public Read, STRICTLY Admin-Only Write
+    match /banners/{bannerId} {
+      allow get: if isValidId(bannerId);
+      allow list: if true;
+
+      allow create: if isValidId(bannerId)
+        && isAdmin()
+        && isValidBanner(incoming())
+        && incoming().createdBy == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isValidId(bannerId)
+        && isAdmin()
+        && isValidBanner(incoming())
+        && incoming().createdBy == existing().createdBy
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'title', 'badgeText', 'subtitle', 'imageUrl', 'linkUrl',
+          'ctaLabel', 'sortOrder', 'isActive', 'updatedAt'
+        ]);
+
+      allow delete: if isValidId(bannerId) && isAdmin();
+    }
+  }
+}

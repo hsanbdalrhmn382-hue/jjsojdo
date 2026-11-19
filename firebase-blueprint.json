@@ -1,0 +1,421 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User account profile and role-based access control metadata",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 160
+        },
+        "fullName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "avatarUrl": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "role": {
+          "type": "string",
+          "enum": ["admin", "moderator", "user"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "fullName", "role", "createdAt", "updatedAt"]
+    },
+    "Store": {
+      "title": "Store",
+      "description": "Global retail store listed on TOP CODES",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "slug": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "logoUrl": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "websiteUrl": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "isPopular": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["name", "slug", "isPopular", "createdAt", "updatedAt"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Coupon category grouping",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "slug": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 400
+        },
+        "sortOrder": {
+          "type": "integer"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["name", "slug", "sortOrder", "createdAt"]
+    },
+    "Coupon": {
+      "title": "Coupon",
+      "description": "Admin-published discount coupon code and offer details",
+      "type": "object",
+      "properties": {
+        "storeId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "categoryId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "code": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 40
+        },
+        "title": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 180
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "discountPercent": {
+          "type": "integer"
+        },
+        "discountLabel": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "terms": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "offerUrl": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "imageUrl": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "startsAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "isFeatured": {
+          "type": "boolean"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "paused", "expired"]
+        },
+        "usageCount": {
+          "type": "integer"
+        },
+        "createdBy": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "storeId",
+        "code",
+        "title",
+        "discountPercent",
+        "isFeatured",
+        "status",
+        "usageCount",
+        "startsAt",
+        "createdBy",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "BannerSlide": {
+      "title": "BannerSlide",
+      "description": "Admin-managed promotional hero banner slide displayed alongside featured coupons",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 140
+        },
+        "badgeText": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "subtitle": {
+          "type": "string",
+          "maxLength": 240
+        },
+        "imageUrl": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "linkUrl": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "ctaLabel": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "sortOrder": {
+          "type": "integer"
+        },
+        "isActive": {
+          "type": "boolean"
+        },
+        "createdBy": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "title",
+        "imageUrl",
+        "sortOrder",
+        "isActive",
+        "createdBy",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Favorite": {
+      "title": "Favorite",
+      "description": "User saved favorite coupon link",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "couponId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["userId", "couponId", "createdAt"]
+    },
+    "CouponVote": {
+      "title": "CouponVote",
+      "description": "User verification vote on whether a coupon works",
+      "type": "object",
+      "properties": {
+        "couponId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "isWorking": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["couponId", "userId", "isWorking", "createdAt", "updatedAt"]
+    },
+    "CouponUse": {
+      "title": "CouponUse",
+      "description": "Recorded coupon copy usage event",
+      "type": "object",
+      "properties": {
+        "couponId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["couponId", "userId", "createdAt"]
+    },
+    "Report": {
+      "title": "Report",
+      "description": "User report for an invalid or expired coupon",
+      "type": "object",
+      "properties": {
+        "couponId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 180
+        },
+        "details": {
+          "type": "string",
+          "maxLength": 600
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "resolved", "dismissed"]
+        },
+        "reviewedBy": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "reviewedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["couponId", "userId", "reason", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profiles and RBAC role assignments"
+    },
+    "/stores/{storeId}": {
+      "schema": { "$ref": "#/entities/Store" },
+      "description": "Retail stores catalog"
+    },
+    "/categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/Category" },
+      "description": "Coupon categories"
+    },
+    "/coupons/{couponId}": {
+      "schema": { "$ref": "#/entities/Coupon" },
+      "description": "Admin-managed discount coupons"
+    },
+    "/favorites/{favoriteId}": {
+      "schema": { "$ref": "#/entities/Favorite" },
+      "description": "Per-user saved favorite coupons"
+    },
+    "/coupon_votes/{voteId}": {
+      "schema": { "$ref": "#/entities/CouponVote" },
+      "description": "Per-user working/not-working votes on coupons"
+    },
+    "/coupon_uses/{useId}": {
+      "schema": { "$ref": "#/entities/CouponUse" },
+      "description": "Recorded copy events per coupon"
+    },
+    "/reports/{reportId}": {
+      "schema": { "$ref": "#/entities/Report" },
+      "description": "Customer reports on invalid or expired coupons"
+    },
+    "/banners/{bannerId}": {
+      "schema": { "$ref": "#/entities/BannerSlide" },
+      "description": "Admin-managed promotional banner slides"
+    }
+  }
+}
